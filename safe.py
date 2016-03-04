@@ -92,7 +92,11 @@ except ImportError:
 import warnings
 warnings.simplefilter('ignore')
 import compiler     # Required for the code safety check
-warnings.resetwarnings()
+
+# Re-enable warnings, and promote them to exceptions.
+# (This makes things like `SyntaxWarning`s trigger tracebacks 
+# rather than messages to stderr. See SeattleTestbed/repy_v2#114)
+warnings.simplefilter('error')
 
 import UserDict     # This is to get DictMixin
 import platform     # This is for detecting Nokia tablets
