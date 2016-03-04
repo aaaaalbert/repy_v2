@@ -50,7 +50,20 @@ class InternalRepyError (Exception):
 
 class RepyException (Exception):
   """All Repy Exceptions derive from this exception."""
-  pass
+  def __init__(self, *value):
+    self.value = value
+  def __str__(self):
+    return str(self.value)
+  def __repr__(self):
+    # Using `type` on a Repy exception returns
+    # "<class 'exception_hierarchy." and the Repy exception class name, 
+    # followed by a closing "'>". We are interested only in the actual 
+    # exception class name.
+    # (The `value` parameter on the other hand is a plain tuple.)
+    my_type_as_string = str(type(self))
+    name_prefix = "<class 'exception_hierarchy."
+    exception_name = my_type_as_string[len(name_prefix):-2]
+    return exception_name + str(self.value)
 
 class RepyArgumentError (RepyException):
   """
@@ -148,10 +161,7 @@ class FileClosedError (FileError):
 
 class SafeException(RepyException):
     """Base class for Safe Exceptions"""
-    def __init__(self,*value):
-        self.value = str(value)
-    def __str__(self):
-        return self.value
+    pass
 
 class CheckNodeException(SafeException):
     """AST Node class is not in the whitelist."""
