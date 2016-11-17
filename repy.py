@@ -54,6 +54,9 @@ import threading
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
+# Stash the `open` call which the `safe` module removes
+_open = open
+
 import safe
 import nanny
 import emulcomm
@@ -90,7 +93,6 @@ if "fork" in dir(os):
 
 
 def get_safe_context(args):
-
 
   # These will be the functions and variables in the user's namespace (along
   # with the builtins allowed by the safe module).
@@ -132,7 +134,7 @@ def execute_namespace_until_completion(thisnamespace, thiscontext):
  
   
   try:
-    thisnamespace.evaluate(thiscontext)
+    return thisnamespace.evaluate(thiscontext)
   except SystemExit:
     raise
   except:
@@ -150,6 +152,8 @@ def execute_namespace_until_completion(thisnamespace, thiscontext):
 
   # Once there are no more events, return...
   return
+
+
 
 def init_repy_location(repy_directory):
   
@@ -212,8 +216,19 @@ def add_repy_options(parser):
   parser.add_argument('--stop', type=str, dest="stopfile",
       help="Watch for the creation of stopfile and abort when it is created")
 
+  # Arguments for non-bypassable security layers, see
+  # https://github.com/aaaaalbert/repy-doodles/blob/master/st-sbsl-design.md
+  parser.add_argument('--donor-sec-dir', type=str,
+      help="The device donor's security layer directory")
+  parser.add_argument('--donor-sec-layers', type=str, nargs="*",
+      help="The device donor's security layer stack")
+  parser.add_argument('--owner-sec-dir', type=str,
+      help="The vessel owner's security layer directory")
+  parser.add_argument('--owner-sec-layers', type=str, nargs="*",
+      help="The vessel owner's security layer stack")
 
-    
+
+
 def parse_options(options):
   """ Parse the specified options and initialize all required structures
   Note: This modifies global state, specifically, the emulcomm module
@@ -319,45 +334,66 @@ def main():
   ### start resource restrictions, etc. for the nanny
   initialize_nanny(resourcefn)
 
-  # Read the user code from the file
-  try:
-    filehandle = open(progname)
-    usercode = filehandle.read()
-    filehandle.close()
-  except:
-    print "FATAL ERROR: Unable to read the specified program file: '%s'" % (progname)
-    sys.exit(1)
+  # Get a clean namespace with the plain RepyV2 API in place
+  base_context = get_safe_context([])
 
-  # create the namespace...
-  try:
-    newnamespace = virtual_namespace.VirtualNamespace(usercode, progname)
-  except CodeUnsafeError, e:
-    print "Specified repy program is unsafe!"
-    print "Static-code analysis failed with error: "+str(e)
-    harshexit.harshexit(5)
+  # Execute, in this order, the security layers specified by the
+  # device donor and the vessel owner, followed by the experimenter's
+  # program.
+  parties = ["device donor", "vessel owner", "vessel user"]
+  dirs = [options.donor_sec_dir, options.owner_sec_dir, options.cwd]
+  programs_and_args = [options.donor_sec_layers, options.owner_sec_layers,
+      options.program_and_args]
 
-  # allow the (potentially large) code string to be garbage collected
-  del usercode
+  for (party, directory, program_and_args) in zip(parties, dirs, programs_and_args):
+    print party, directory, program_and_args
+    # If the current party doesn't have a program to run, skip them.
+    if program_and_args is None:
+      continue
+    # It's fine if the party specified no dir -- use the Repy start dir then.
+    if directory is None:
+      directory = repy_constants.REPY_START_DIR
+
+    os.chdir(os.path.abspath(directory))
+    progname = program_and_args[0]
+    progargs = program_and_args[1:]
+    # Read the user code from the file
+    try:
+      filehandle = _open(progname)
+      code = filehandle.read()
+      filehandle.close()
+    except Exception, e:
+      print "FATAL ERROR: Unable to read the specified program file for", 
+      print party, ":", progname, directory
+      print repr(e)
+      sys.exit(1)
+
+    # create the namespace...
+    try:
+      newnamespace = virtual_namespace.VirtualNamespace(code, progname)
+    except CodeUnsafeError, e:
+      print "Specified repy program is unsafe!"
+      print "Static-code analysis failed with error: "+str(e)
+      harshexit.harshexit(5)
+
+    # allow the (potentially large) code string to be garbage collected
+    del code
 
 
-
-  # Insert program log separator and execution information
-  if options.execinfo:
-    print '=' * 40
-    print "Running program:", progname
-    print "Arguments:", progargs
-    print '=' * 40
-
+    # Insert program log separator and execution information
+    if options.execinfo:
+      print '=' * 40
+      print "Running", party, "program:", progname
+      print "Arguments:", progargs
+      print '=' * 40
 
 
-  # get a new namespace
-  newcontext = get_safe_context(progargs)
+    # Configure this namespace's context and run the code to completion
+    base_context["callargs"] = progargs
+    resulting_context = execute_namespace_until_completion(newnamespace, base_context)
+    # This namespace's resulting context is the next namespace's base context
+    base_context = resulting_context
 
-  # one could insert a new function for repy code here by changing newcontext 
-  # to contain an additional function.
-
-  # run the code to completion...
-  execute_namespace_until_completion(newnamespace, newcontext)
 
   # No more pending events for the user thread, we exit
   harshexit.harshexit(0)
