@@ -45,7 +45,7 @@
 import os
 import sys
 import time
-import optparse
+import argparse
 import threading
 
 # Relative imports
@@ -179,46 +179,40 @@ def init_repy_location(repy_directory):
   sys.path = newsyspath
 
 
-def add_repy_options(parser):
-  """Adds the Repy command-line options to the specified optparser
-  """
 
-  parser.add_option('--ip',
-                    action="append", type="string", dest="ip" ,
-                    help="Explicitly allow Repy to bind to the specified IP. This option can be used multiple times."
-                    )
-  parser.add_option('--execinfo',
-                    action="store_true", dest="execinfo", default=False,
-                    help="Display information regarding the current execution state."
-                    )
-  parser.add_option('--iface',
-                    action="append", type="string", dest="interface",
-                    help="Explicitly allow Repy to bind to the specified interface. This option can be used multiple times."
-                    )
-  parser.add_option('--nootherips',
-                    action="store_true", dest="nootherips",default=False,
-                    help="Do not allow IPs or interfaces that are not explicitly specified"
-                    )
-  parser.add_option('--logfile',
-                    action="store", type="string", dest="logfile",
-                    help="Set up a circular log buffer and output to logfile"
-                    )
-  parser.add_option('--stop',
-                    action="store", type="string", dest="stopfile",
-                    help="Watch for the creation of stopfile and abort when it is created"
-                    )
-  parser.add_option('--status',
-                    action="store", type="string", dest="statusfile",
-                    help="Write status information into statusfile"
-                    )
-  parser.add_option('--cwd',
-                    action="store", type="string", dest="cwd",
-                    help="Set Current working directory to cwd"
-                    )
-  parser.add_option('--servicelog',
-                    action="store_true", dest="servicelog",
-                    help="Enable usage of the servicelogger for internal errors"
-                    )
+
+def add_repy_options(parser):
+  """Adds the Repy command-line options to the specified arg parser"""
+  # Required arguments
+  parser.add_argument("restrictionsfile", nargs=1, help="Resource restrictions file to use for this sandbox.")
+  parser.add_argument("program_and_args", nargs="+", help="The user program and its command-line arguments.")
+
+
+  # Optional arguments, mostly used by the nodemanager
+  # XXX This is the vessel's *future* working dir, not the current one
+  parser.add_argument('--cwd', type=str,
+      help="Set the vessel's working directory to CWD")
+  parser.add_argument('--execinfo', action="store_true",
+      help="Display information regarding the current execution state.")
+  parser.add_argument('--iface', action="append", type=str, dest="interface",
+      help="Explicitly allow Repy to bind to the specified interface. (May be used multiple times.)")
+  parser.add_argument('--ip', action="append", type=str,
+      help="Explicitly allow Repy to bind to the specified IP. (May be used multiple times.)")
+  # XXX See SeattleTestbed/repy_v2#104 too
+  parser.add_argument('--logfile', type=str,
+      help="Set up a circular log buffer and output to logfile")
+  parser.add_argument('--nootherips', action="store_true",
+      help="Do not allow IPs or interfaces that are not explicitly specified")
+  parser.add_argument('--servicelog',
+      help="Log internal errors to the servicelogger file (instead of stderr)")
+
+  # XXX --status and --stop should have "...file" in their names too
+  parser.add_argument('--status', type=str, dest="statusfile",
+      help="Write sandbox status information into statusfile")
+  parser.add_argument('--stop', type=str, dest="stopfile",
+      help="Watch for the creation of stopfile and abort when it is created")
+
+
     
 def parse_options(options):
   """ Parse the specified options and initialize all required structures
@@ -310,19 +304,10 @@ def main():
 
   ### PARSE OPTIONS.   These are command line in our case, but could be from
   ### anywhere if this is repurposed...
-  usage = "USAGE: repy.py [options] resource_file program_to_run.r2py [program args]"
-  parser = optparse.OptionParser(usage=usage)
-  
-  # Set optparse to stop parsing arguments on the first non-option arg. We 
-  # need this so that command-line args to the sandboxed Repy program don't 
-  # clash or get confused with args to the sandbox (repy.py) itself.
-  # See also SeattleTestbed/repy_v2#101 .
-  # (Per the USAGE string above, the user program name is the first 
-  # non-option argument which causes parsing to stop.)
-  parser.disable_interspersed_args()
+  parser = argparse.ArgumentParser(description="Run a RepyV2 sandbox.")
   
   add_repy_options(parser)
-  options, args = parser.parse_args()
+  options = parser.parse_args()
   
   if len(args) < 2:
     print "Repy requires a resource file and the program to run!"
