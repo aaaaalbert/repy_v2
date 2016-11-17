@@ -309,14 +309,9 @@ def main():
   add_repy_options(parser)
   options = parser.parse_args()
   
-  if len(args) < 2:
-    print "Repy requires a resource file and the program to run!"
-    parser.print_help()
-    sys.exit(1)
-  
-  resourcefn = args[0]
-  progname = args[1]
-  progargs = args[2:]
+  resourcefn = options.restrictionsfile[0]
+  progname = options.program_and_args[0]
+  progargs = options.program_and_args[1:]
   
   # Do a huge amount of initialization.
   parse_options(options)
