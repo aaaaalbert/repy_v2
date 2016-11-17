@@ -203,7 +203,7 @@ def add_repy_options(parser):
       help="Set up a circular log buffer and output to logfile")
   parser.add_argument('--nootherips', action="store_true",
       help="Do not allow IPs or interfaces that are not explicitly specified")
-  parser.add_argument('--servicelog',
+  parser.add_argument('--servicelog', action="store_true",
       help="Log internal errors to the servicelogger file (instead of stderr)")
 
   # XXX --status and --stop should have "...file" in their names too
