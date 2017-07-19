@@ -18,11 +18,6 @@ import portable_popen  # For Popen
 
 import platform
 
-# Determine if we are 32 bit or 64 bit
-running_32bit = True
-architecture = platform.architecture()
-if "64" in architecture[0]:
-  running_32bit = False
 
 # Manually import the common functions we want
 exists_outgoing_network_socket = nix_api.exists_outgoing_network_socket
@@ -43,11 +38,6 @@ last_stat_data = None   # Store the last array of data from _get_proc_info_by_pi
 JIFFIES_PER_SECOND = 100.0
 PAGE_SIZE = os.sysconf('SC_PAGESIZE')
 
-# Get the thread id of the currently executing thread
-if running_32bit:
-  GETTID = 224 
-else:
-  GETTID = 186
 
 # Maps each field in /proc/{pid}/stat to an index when split by spaces
 FIELDS = {
@@ -196,9 +186,19 @@ def get_process_rss(force_update=False, pid=None):
   return rss_bytes
 
 
-# Get the id of the currently executing thread
+# Get the id of the currently executing thread.
 def _get_current_thread_id():
-  # Syscall for GETTID
+  # The actual GETTID syscall number depends on the machine type.
+  machine = platform.machine()
+  architecture = platform.architecture()[0]
+  if "x86" in machine or "i386" in machine:
+    if "64" in architecture:
+      GETTID = 186
+    elif "32" in architecture:
+      GETTID = 224
+  elif machine.startswith("mips"):
+    GETTID = 4222
+  # TODO Needs ARM and possibly other clauses!
   return syscall(GETTID)
 
 

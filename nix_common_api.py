@@ -22,7 +22,13 @@ try:
   import android
   libc = ctypes.CDLL("/system/lib/libc.so")
 except ImportError:
-  libc = ctypes.CDLL(ctypes.util.find_library("c"))
+  path_to_libc = ctypes.util.find_library("c")
+  if path_to_libc is None:
+    # `find_library` failed. Use the hardcoded location.
+    # valid on OpenWrt.
+    path_to_libc = "/lib/libc.so.0"
+  libc = ctypes.CDLL(path_to_libc)
+
 
 # Functions
 _strerror = libc.strerror
