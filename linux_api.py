@@ -18,7 +18,6 @@ import portable_popen  # For Popen
 
 import platform
 
-
 # Manually import the common functions we want
 exists_outgoing_network_socket = nix_api.exists_outgoing_network_socket
 exists_listening_network_socket = nix_api.exists_listening_network_socket
@@ -186,11 +185,14 @@ def get_process_rss(force_update=False, pid=None):
   return rss_bytes
 
 
-# Get the id of the currently executing thread.
-def _get_current_thread_id():
-  # The actual GETTID syscall number depends on the machine type.
+# Determine the machine's/architecture's GETTID syscall number right
+# here, once. (Running the same code inside `_get_current_thread_id`
+# after `safe.py` has run causes an Unsafe call error when
+# `platform.architecture()` tries to import `struct`.)
+def _get_machine_GETTID_number():
   machine = platform.machine()
   architecture = platform.architecture()[0]
+  # The actual GETTID syscall number depends on the machine type.
   if "x86" in machine or "i386" in machine:
     if "64" in architecture:
       GETTID = 186
@@ -199,6 +201,15 @@ def _get_current_thread_id():
   elif machine.startswith("mips"):
     GETTID = 4222
   # TODO Needs ARM and possibly other clauses!
+  return GETTID
+
+GETTID = _get_machine_GETTID_number()
+
+
+
+
+# Get the id of the currently executing thread.
+def _get_current_thread_id():
   return syscall(GETTID)
 
 
