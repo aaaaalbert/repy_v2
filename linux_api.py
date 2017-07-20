@@ -200,7 +200,11 @@ def _get_machine_GETTID_number():
       GETTID = 224
   elif machine.startswith("mips"):
     GETTID = 4222
-  # TODO Needs ARM and possibly other clauses!
+  elif machine.startswith("arm"):
+    GETTID = 224
+  else:
+    raise Exception("I don't know the GETTID syscall number for machine '" +
+        machine + "' with architecture '" + architecture + "'.")
   return GETTID
 
 GETTID = _get_machine_GETTID_number()
