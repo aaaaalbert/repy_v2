@@ -1162,6 +1162,7 @@ def _timed_conn_initialize(localip,localport,destip,destport, timeout):
   # Get a TCP socket bound to the local ip / port
   sock = _get_tcp_socket(localip, localport)
   sock.settimeout(timeout)
+  print "Set the socket timeout to", sock.gettimeout()
 
   try:
     # Try to connect until we timeout
@@ -1169,9 +1170,11 @@ def _timed_conn_initialize(localip,localport,destip,destport, timeout):
     while nonportable.getruntime() - starttime < timeout:
       try:
         sock.connect((destip, destport))
+        print nonportable.getruntime(), "This should never print"
         connected = True
         break
       except Exception, e:
+        print nonportable.getruntime(), "Exception is", repr(e)
         # Check if we are already connected
         if _is_already_connected_exception(e):
           connected = True     

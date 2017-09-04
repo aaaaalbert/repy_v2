@@ -1,0 +1,18 @@
+"""
+Test for SeattleTestbed/repy_v2#52, openconnection timeout issues
+"""
+timeout = 100
+start_time = getruntime()
+log("Timeout", timeout, "Start time:", str(start_time), "\n")
+
+try:
+    openconnection(gethostbyname("gmail.com"), 63100, getmyip(), 63100, timeout)
+except TimeoutError:
+    pass
+except Exception, e:
+    log(getruntime(), "Error raised: ", repr(e)) 
+
+end_time = getruntime()
+log("End time: " + str(end_time))
+log("Elapsed time: " + str(end_time - start_time))
+log("\n")
