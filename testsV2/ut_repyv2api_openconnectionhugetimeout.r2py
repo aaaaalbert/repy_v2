@@ -1,6 +1,7 @@
 """
 Test for SeattleTestbed/repy_v2#52, openconnection timeout issues
 """
+#pragma repy
 timeout = 100
 start_time = getruntime()
 log("Timeout", timeout, "Start time:", str(start_time), "\n")
