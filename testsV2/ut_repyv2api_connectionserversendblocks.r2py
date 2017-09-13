@@ -41,6 +41,8 @@ while True:
     "more than the sane maximum buffer size.")
   break
 
+log("Sent", totalamountsent, "bytes, sleeping now.\n")
+sleep(5)
 
 # The client should be able to receive that amount of data...
 totalamountrecvd = 0
