@@ -811,9 +811,20 @@ def _copy(obj, objectmap=None):
 
     # types.InstanceType is included because the user can provide an instance
     # of a class of their own in the list of callback args to settimer.
-    if _is_in(type(obj), [str, unicode, int, long, float, complex, bool, frozenset,
-                          types.NoneType, types.FunctionType, types.LambdaType,
-                          types.MethodType, types.InstanceType]):
+    if _is_in(type(obj), [
+        str, unicode, int, long, float, complex, bool, frozenset,
+        types.NoneType,     # for None
+        types.FunctionType, # for functions
+        types.BuiltinFunctionType, # for builtin functions like chr
+        types.LambdaType,   # XXX should not happen
+        types.MethodType,   # for methods of objects
+        types.InstanceType, # for instantiated objects
+        types.ClassType,    # for classes of objects
+        types.SliceType,    # for slices
+        types.XRangeType,   # for xrange
+        types.EllipsisType, # for Ellipsis
+        safe.safe_type,     # for wrapped types like str, RepyExcpetion
+        ]):
       return obj
 
     elif type(obj) is list:

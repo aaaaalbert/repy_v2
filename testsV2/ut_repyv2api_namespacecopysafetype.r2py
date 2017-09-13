@@ -1,0 +1,72 @@
+"""
+This unit test verifies that `dict`s can traverse RepyV2's namespace
+wrapping and unwrapping (and the namespace._copy method in particular)
+safely, even if the values of the dict are of type `safe_type`,
+see SeattleTestbed/repy_v2#126. We test dicts with other types of
+values too to reach some level of completeness, but not every
+possible way of achieving every possible type yet.
+
+Namespace traversals like this happen when a Repy program calls into
+an API call that takes parameters. The parameters are wrapped/unwrapped
+as they enter/leave the Repy namespace, so as to ensure that dangerous
+parts of the underlying implementation of objects, types, etc. are
+hidden from the sandbox.
+
+We currently have a single API call that takes a dict (or SafeDict) as
+an argument, which is the `evaluate(context)` method of VirtualNamespace.
+Thus, this is what our test uses to verify that traversal works.
+Note that different parts of namespace.py's wrapping/unwrapping logic
+are used, depending on whether the `context` in our test is a `dict`
+or a `SafeDict`:w
+. We test both variants, just to be sure.
+"""
+#pragma repy
+
+v = createvirtualnamespace("", "")
+
+
+# Create a few things to test the wrapping with
+listening_socket = listenforconnection("127.0.0.1", 63100)
+
+class DummyClass():
+  def dummy_method():
+    pass
+
+def dummy_function():
+  pass
+
+
+# These cases should definitely work, as they are likely used very often.
+easy_cases = [
+    # thing        # type of thing (unless obvious)
+    (), [], {}, set(), "",
+    (1, 2, 3), [4, 5, 6], {7: 8}, {"9": 10}, set([0, 0, 1]), "Hi!",
+    None, True, False,
+    dummy_function,
+    getmyip,
+    DummyClass(),   # instance
+    createlock(),
+    DummyClass.dummy_method, # instancemethod
+    listening_socket,
+    SafeDict,
+    SafeDict({"xy": 123}),
+    ]
+
+# These are things that cause problems unless `namespace.py` is patched.
+unusual_cases = [
+    # thing        # type of thing
+    DummyClass,    # classobj
+    chr,           # builtin_function_or_method (like abs, bool, chr, etc.)
+    str, Exception, RepyException, # safe_type (like int, float, set, etc.)
+    xrange(1),     # xrange
+    slice(1),      # slice
+    Ellipsis,      # ellipsis
+    ]
+
+
+# Check namespace traversal for all of the cases now
+for testthing in easy_cases + unusual_cases:
+  v.evaluate({"abc": testthing})
+  # Since we're here already, let's test SafeDict's too
+  v.evaluate(SafeDict({"abc": testthing}))
+
